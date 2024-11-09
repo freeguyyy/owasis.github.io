@@ -3,28 +3,105 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>my Resume</title>
+    <title>Football Player Info - Dark Theme</title>
+    <link rel="stylesheet" href="style2.css">
 </head>
 <body>
-    <p>Hellow This My Resume Home Page</p> 
-    <h1>My Name is Sudipta Singh</h1>
-    <!-- for biger front size use <h1> tage-->
-    <h2>I Study BCA</h2>
-    <!-- for smaler front size use <h2> to <h6> -->
-    <p>
-        You Will Also See My Skills And Education By Click ON those Links
-    </p>
-    <br><!-- tag have no contain anything -->
-    <img src="https://hotemoji.com/images/emoji/l/17zcrtb11cx2zl.png" width="90" >
-    <br>
-    <br>
-    <button>
-    <a href="http://127.0.0.1:5500/portfolio/about.html"> go to Skills</a>
-    </button>
-    <br>
-    <br>
-    <button>
-    <a href="http://127.0.0.1:5500/portfolio/education.html"> go to Education </a>
-    </buton>
+    <h1 class="glow">Football Player Info</h1>
+    <form id="playerForm">
+        <label for="playerName">Player Name:</label>
+        <input type="text" id="playerName" required placeholder="e.g. Lionel Messi">
+        <button type="submit">Search</button>
+    </form>
+    <div id="result"></div>
+
+    <script>
+        async function fetchPlayerInfo(playerName) {
+            const apiUrl = `https://www.thesportsdb.com/api/v1/json/3/searchplayers.php?p=${encodeURIComponent(playerName)}`;
+            const response = await fetch(apiUrl);
+            if (!response.ok) {
+                throw new Error('Failed to fetch player data');
+            }
+            const data = await response.json();
+            if (!data.player || data.player.length === 0) {
+                throw new Error('Player not found');
+            }
+            return data.player[0];
+        }
+
+        async function fetchTeamInfo(teamId) {
+            const apiUrl = `https://www.thesportsdb.com/api/v1/json/3/lookupteam.php?id=${teamId}`;
+            const response = await fetch(apiUrl);
+            if (!response.ok) {
+                throw new Error('Failed to fetch team data');
+            }
+            const data = await response.json();
+            return data.teams[0];
+        }
+
+        function extractTrophies(description) {
+            const trophyRegex = /(\d+)\s*x?\s*([\w\s]+(?:Cup|League|Trophy|Title|Championship))/gi;
+            const trophies = {};
+            let match;
+
+            while ((match = trophyRegex.exec(description)) !== null) {
+                const count = parseInt(match[1]);
+                const trophy = match[2].trim();
+                trophies[trophy] = (trophies[trophy] || 0) + count;
+            }
+
+            return trophies;
+        }
+
+        document.getElementById('playerForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const playerName = document.getElementById('playerName').value;
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '<p>Searching...</p>';
+
+            try {
+                const playerInfo = await fetchPlayerInfo(playerName);
+                const teamInfo = await fetchTeamInfo(playerInfo.idTeam);
+                const trophies = extractTrophies(playerInfo.strDescriptionEN);
+
+                resultDiv.innerHTML = `
+                    <div class="player-info">
+                        <img src="${playerInfo.strThumb || playerInfo.strCutout || 'https://via.placeholder.com/200'}" alt="${playerInfo.strPlayer}" class="player-image glow">
+                        <div class="player-details">
+                            <div class="player-name">${playerInfo.strPlayer}</div>
+                            <div class="country-info">
+                                <img src="${playerInfo.strNationalTeamJersey || 'https://via.placeholder.com/30x20'}" alt="${playerInfo.strNationality} flag" class="country-flag">
+                                <span>${playerInfo.strNationality}</span>
+                            </div>
+                            <p><strong>Current Team:</strong> ${playerInfo.strTeam}</p>
+                            <p><strong>Position:</strong> ${playerInfo.strPosition}</p>
+                            <p><strong>Birth Date:</strong> ${playerInfo.dateBorn}</p>
+                        </div>
+                    </div>
+                    <div class="stats">
+                        <h3>Career Statistics</h3>
+                        <p><strong>Total Goals:</strong> ${playerInfo.strGoals || 'Not available'}</p>
+                        <p><strong>Appearances:</strong> ${playerInfo.strAppearances || 'Not available'}</p>
+                        
+                        <h3>Trophies</h3>
+                        <div class="trophy-list">
+                            ${Object.entries(trophies).map(([trophy, count]) => `
+                                <div class="trophy-item">
+                                    <strong>${count}</strong> ${trophy}
+                                </div>
+                            `).join('')}
+                        </div>
+                        
+                        <h3>Current Team: ${teamInfo.strTeam}</h3>
+                        <p><strong>League:</strong> ${teamInfo.strLeague}</p>
+                        <p><strong>League Position:</strong> ${teamInfo.intRank || 'Not available'}</p>
+                        <p><strong>Stadium:</strong> ${teamInfo.strStadium}</p>
+                    </div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `<p class="error">Error: ${error.message}</p>`;
+            }
+        });
+    </script>
 </body>
 </html>
